@@ -220,14 +220,15 @@ uint8_t Sd2Card::erase(uint32_t firstBlock, uint32_t lastBlock) {
   firstBlock <<= 9;
   lastBlock <<= 9;
   while(lastS >= firstS) {
-	W25Q16_Read(fisrtS, flashtemp, 4096);
-	EraseSector(fisrtS);
+	W25Q16_Read(fisrtS<<9, flashtemp, 4096);
+	EraseSector(fisrtS<<9);
 	if(lastS > firstS)
-		memset(flashtemp +(firstBlock-firstS); 0XFF; 4096-(firstBlock - firstS));
+		memset(flashtemp + (firstBlock-firstS) << 9; 0XFF; 4096-(firstBlock - firstS)<<9);
 	else
-		memset(flashtemp + (firstBlock-firstS);0XFF;lastBlock-firstBlock );
-	W25Q16_Write(firstS; flashtemp; 4096);
-	firstS++;
+		memset(flashtemp + (firstBlock-firstS) << 9; 0XFF; (lastBlock+1-firstBlock)<<9);
+	W25Q16_Write(firstS << 9; flashtemp; 4096);
+	firstS += 8;
+	firstBlock = firstS;
   }
   return true;
 }
@@ -461,11 +462,7 @@ uint8_t Sd2Card::writeStart(uint32_t blockNumber, uint32_t eraseCount) {
     goto fail;
   }
 #endif  // SD_PROTECT_BLOCK_ZERO
-  // send pre-erase count
-
-  // use address if not SDHC card
-  blockNumber <<= 9;
-  for(int i=0;i<eraseCount;i++)EraseSector(blockNumber+i*4096);
+  erase(blockNumber,blockNumber+eraseCount-1);
   return true;
 
  fail:
