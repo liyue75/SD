@@ -50,7 +50,7 @@
 
  */
 
-#include "SD.h"
+#include "UD.h"
 
 namespace SDLib {
 
@@ -336,7 +336,6 @@ boolean callback_rmdir(SdFile& parentDir, const char *filePathComponent,
 
 boolean SDClass::begin(uint8_t csPin) {
   if(root.isOpen()) root.close();
-
   /*
 
     Performs the initialisation required by the sdfatlib library.
@@ -457,6 +456,7 @@ File SDClass::open(const char *filepath, uint8_t mode) {
 
   if (! filepath[0]) {
     // it was the directory itself!
+
     return File(parentdir, "/");
   }
 
@@ -464,17 +464,21 @@ File SDClass::open(const char *filepath, uint8_t mode) {
   SdFile file;
 
   // failed to open a subdir!
+
   if (!parentdir.isOpen())
     return File();
-
   if ( ! file.open(parentdir, filepath, mode)) {
+	  Serial.println(__LINE__);
     return File();
   }
+  Serial.println(__LINE__);
   // close the parent
   parentdir.close();
-
+Serial.println(__LINE__);
   if ((mode & (O_APPEND | O_WRITE)) == (O_APPEND | O_WRITE))
-    file.seekSet(file.fileSize());
+  { Serial.println(__LINE__);
+  file.seekSet(file.fileSize());}
+	Serial.println(__LINE__);
   return File(file, filepath);
 }
 

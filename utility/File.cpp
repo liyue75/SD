@@ -17,7 +17,7 @@
  * along with the Arduino SdFat Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#include "SdFat.h"
+#include "Fat.h"
 #ifdef __AVR__
 #include <avr/pgmspace.h>
 #endif
@@ -394,9 +394,9 @@ uint8_t SdFile::open(SdFile* dirFile, const char* fileName, uint8_t oflag) {
   dir_t* p;
 
   // error if already open
-  if (isOpen())return false;
+  if (isOpen()) {Serial.println("isOpen");return false;}
 
-  if (!make83Name(fileName, dname)) return false;
+  if (!make83Name(fileName, dname)) {Serial.println("make83");return false;}
   vol_ = dirFile->vol_;
   dirFile->rewind();
 
@@ -404,13 +404,21 @@ uint8_t SdFile::open(SdFile* dirFile, const char* fileName, uint8_t oflag) {
   uint8_t emptyFound = false;
 
   // search for file
+  Serial.print("dirFile->fileSize_ ");
+  Serial.println(dirFile->fileSize_);
   while (dirFile->curPosition_ < dirFile->fileSize_) {
     uint8_t index = 0XF & (dirFile->curPosition_ >> 5);
+	Serial.print("dirFile->readDirCache()");
+    Serial.println((uint32_t)dirFile->readDirCache());
     p = dirFile->readDirCache();
-    if (p == NULL) return false;
-
+	Serial.println((uint32_t)p);
+    if (p == NULL) {Serial.println("p ==Null");return false;}
+	for(int i =0;i<512;i++)
+	Serial.print((char)(p->name[i]));
+    Serial.println();
     if (p->name[0] == DIR_NAME_FREE || p->name[0] == DIR_NAME_DELETED) {
       // remember first empty slot
+	  Serial.println(__LINE__);
       if (!emptyFound) {
         emptyFound = true;
         dirIndex_ = index;
@@ -420,24 +428,25 @@ uint8_t SdFile::open(SdFile* dirFile, const char* fileName, uint8_t oflag) {
       if (p->name[0] == DIR_NAME_FREE) break;
     } else if (!memcmp(dname, p->name, 11)) {
       // don't open existing file if O_CREAT and O_EXCL
-      if ((oflag & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)) return false;
+      if ((oflag & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)) {Serial.println(__LINE__);return false;}
 
       // open found file
+	  Serial.println(__LINE__);
       return openCachedEntry(0XF & index, oflag);
     }
   }
   // only create file if O_CREAT and O_WRITE
-  if ((oflag & (O_CREAT | O_WRITE)) != (O_CREAT | O_WRITE)) return false;
+  if ((oflag & (O_CREAT | O_WRITE)) != (O_CREAT | O_WRITE)) {Serial.println(__LINE__);return false;}
 
   // cache found slot or add cluster if end of file
   if (emptyFound) {
     p = cacheDirEntry(SdVolume::CACHE_FOR_WRITE);
-    if (!p) return false;
+    if (!p) {Serial.println(__LINE__);return false;}
   } else {
-    if (dirFile->type_ == FAT_FILE_TYPE_ROOT16) return false;
+    if (dirFile->type_ == FAT_FILE_TYPE_ROOT16) {Serial.println(__LINE__);return false;}
 
     // add and zero cluster for dirFile - first cluster is in cache for write
-    if (!dirFile->addDirCluster()) return false;
+    if (!dirFile->addDirCluster()) {Serial.println(__LINE__);return false;}
 
     // use first entry in cluster
     dirIndex_ = 0;
@@ -461,7 +470,7 @@ uint8_t SdFile::open(SdFile* dirFile, const char* fileName, uint8_t oflag) {
   p->lastWriteTime = p->creationTime;
 
   // force write of entry to SD
-  if (!SdVolume::cacheFlush()) return false;
+  if (!SdVolume::cacheFlush()) {Serial.println(__LINE__);return false;}
 
   // open entry in cache
   return openCachedEntry(dirIndex_, oflag);
@@ -680,6 +689,8 @@ int16_t SdFile::read(void* buf, uint16_t nbyte) {
     uint32_t block;  // raw device block number
     uint16_t offset = curPosition_ & 0X1FF;  // offset in block
     if (type_ == FAT_FILE_TYPE_ROOT16) {
+	  Serial.print("vol_->rootDirStart()");Serial.println(vol_->rootDirStart());
+	  Serial.print("curPosition_ >> 9");Serial.println(curPosition_ >> 9);
       block = vol_->rootDirStart() + (curPosition_ >> 9);
     } else {
       uint8_t blockOfCluster = vol_->blockOfCluster(curPosition_);
@@ -701,6 +712,7 @@ int16_t SdFile::read(void* buf, uint16_t nbyte) {
     if (n > (512 - offset)) n = 512 - offset;
 
     // no buffering needed if n == 512 or user requests no buffering
+	Serial.print("unbufferedRead() = ");Serial.println(unbufferedRead());
     if ((unbufferedRead() || n == 512) &&
       block != SdVolume::cacheBlockNumber_) {
       if (!vol_->readData(block, offset, n, dst)) return -1;
@@ -750,7 +762,7 @@ int8_t SdFile::readDir(dir_t* dir) {
 // Assumes file is correctly positioned
 dir_t* SdFile::readDirCache(void) {
   // error if not directory
-  if (!isDir()) return NULL;
+  if (!isDir()){ Serial.print("isDir");return NULL;}
 
   // index of entry in cache
   uint8_t i = (curPosition_ >> 5) & 0XF;
@@ -760,7 +772,9 @@ dir_t* SdFile::readDirCache(void) {
 
   // advance to next entry
   curPosition_ += 31;
-
+  Serial.print("SdVolume::cacheBuffer_.dir");
+  Serial.println((uint32_t)SdVolume::cacheBuffer_.dir);
+  Serial.print("i ");Serial.println(i);
   // return pointer to entry
   return (SdVolume::cacheBuffer_.dir + i);
 }

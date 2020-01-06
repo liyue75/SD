@@ -17,8 +17,8 @@
  * along with the Arduino SdFat Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#ifndef FatStructs_h
-#define FatStructs_h
+#ifndef Structs_h
+#define Structs_h
 /**
  * \file
  * FAT file structures

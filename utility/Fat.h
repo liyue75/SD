@@ -26,7 +26,7 @@
 #if defined (__AVR__) || defined (__CPU_ARC__) 
 #include <avr/pgmspace.h>
 #endif
-#include "Sd2Card.h"
+#include "2Card.h"
 #include "FatStructs.h"
 #include <Print.h>
 //------------------------------------------------------------------------------

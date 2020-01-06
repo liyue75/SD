@@ -17,8 +17,8 @@
  * along with the Arduino SdFat Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#ifndef SdFatUtil_h
-#define SdFatUtil_h
+#ifndef FatUtil_h
+#define FatUtil_h
 /**
  * \file
  * Useful utility functions.
@@ -72,4 +72,4 @@ static NOINLINE void SerialPrintln_P(PGM_P str) {
   Serial.println();
 }
 #endif  // __AVR__
-#endif  // #define SdFatUtil_h
+#endif  // #define FatUtil_h

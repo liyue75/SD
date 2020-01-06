@@ -19,7 +19,7 @@
  */
 #define USE_SPI_LIB
 #include <Arduino.h>
-#include "SPI2Flash.h"
+#include "2Card.h"
 //------------------------------------------------------------------------------
 
 
@@ -87,7 +87,7 @@ static void EraseSector(uint32_t address)
     CS_H;
   
 }
-static void W25Q16_Write(uint32_t address,uint8_t *data,uint16_t j)
+static void W25Q16_Write(uint32_t address,const uint8_t *data,uint16_t j)
 {
     uint16_t i;
     while(W25Q16_BUSY());//如果芯片繁忙就等在这里
@@ -216,17 +216,29 @@ uint8_t Sd2Card::flashtemp[4096] = {0};
 uint8_t Sd2Card::erase(uint32_t firstBlock, uint32_t lastBlock) {
  // memset(flashtemp,0xFF,4096);
   uint32_t firstS = (firstBlock/8)*8;
+  Serial.print("firstS=");Serial.print(firstS);
   uint32_t lastS = (lastBlock/8)*8;
-  firstBlock <<= 9;
-  lastBlock <<= 9;
+  Serial.print("lastS=");Serial.print(lastS);
   while(lastS >= firstS) {
-	W25Q16_Read(fisrtS<<9, flashtemp, 4096);
-	EraseSector(fisrtS<<9);
-	if(lastS > firstS)
-		memset(flashtemp + (firstBlock-firstS) << 9; 0XFF; 4096-(firstBlock - firstS)<<9);
-	else
-		memset(flashtemp + (firstBlock-firstS) << 9; 0XFF; (lastBlock+1-firstBlock)<<9);
-	W25Q16_Write(firstS << 9; flashtemp; 4096);
+	if(lastS == firstS) { 
+		if (firstBlock-firstS) 
+		W25Q16_Read(firstS<<9, flashtemp, (firstBlock-firstS)<<9);
+	    if ((firstS+8)-(lastBlock+1))
+	    W25Q16_Read((lastBlock+1)<<9, flashtemp+((firstBlock-firstS)<<9), ((firstS+8)-(lastBlock+1))<<9);
+	} else {
+		if (firstBlock-firstS)
+	      W25Q16_Read(firstS<<9, flashtemp, (firstBlock-firstS)<<9);
+    }	  
+	EraseSector(firstS<<9);
+	if (lastS == firstS) { 
+		if (firstBlock-firstS) 
+	    W25Q16_Write(firstS<<9, flashtemp, (firstBlock-firstS)<<9);	    
+	    if ((firstS+8)-(lastBlock+1)) 
+	    W25Q16_Write((lastBlock+1)<<9, flashtemp+((firstBlock-firstS)<<9), ((firstS+8)-(lastBlock+1))<<9);		
+	} else {
+		if (firstBlock-firstS)
+	      W25Q16_Write(firstS<<9, flashtemp, (firstBlock-firstS)<<9);
+	}  
 	firstS += 8;
 	firstBlock = firstS;
   }
@@ -259,6 +271,7 @@ uint8_t Sd2Card::init(uint8_t sckRateID, uint8_t chipSelectPin) {
   pinMode(chipSelectPin_, OUTPUT);
   digitalWrite(chipSelectPin_, HIGH);
   SDCARD_SPI.begin();
+  type_ = 1;
   return true;
 }
 //------------------------------------------------------------------------------
@@ -311,71 +324,24 @@ uint8_t Sd2Card::readData(uint32_t block,
   }
   if (!inBlock_ || block != block_ || offset < offset_) {
     block_ = block;
-    if (!waitStartBlock()) {
-      goto fail;
-    }
     offset_ = 0;
     inBlock_ = 1;
   }
    W25Q16_Read((block<<9)+offset, dst, count);
   offset_ += count;
-  if (!partialBlockRead_ || offset_ >= 512) {
-    // read rest of data, checksum and set chip select high
- //   readEnd();
-  }
   return true;
 
  fail:
   chipSelectHigh();
   return false;
 }
-//------------------------------------------------------------------------------
-/** Skip remaining data in a block when in partial block read mode. */
-void Sd2Card::readEnd(void) {
-  if (inBlock_) {
-    while (offset_++ < 514) spiRec();
-    chipSelectHigh();
-    inBlock_ = 0;
-  }
-}
-//------------------------------------------------------------------------------
-/** read CID or CSR register */
+
 uint8_t Sd2Card::readRegister(uint8_t cmd, void* buf) {
 
   return true;
 
 }
-//------------------------------------------------------------------------------
-/**
- * Set the SPI clock rate.
- *
- * \param[in] sckRateID A value in the range [0, 6].
- *
- * The SPI clock will be set to F_CPU/pow(2, 1 + sckRateID). The maximum
- * SPI rate is F_CPU/2 for \a sckRateID = 0 and the minimum rate is F_CPU/128
- * for \a scsRateID = 6.
- *
- * \return The value one, true, is returned for success and the value zero,
- * false, is returned for an invalid value of \a sckRateID.
- */
-uint8_t Sd2Card::setSckRate(uint8_t sckRateID) {
-  if (sckRateID > 6) {
-    error(SD_CARD_ERROR_SCK_RATE);
-    return false;
-  }
 
-  switch (sckRateID) {
-    case 0:  settings = SPISettings(25000000, MSBFIRST, SPI_MODE0); break;
-    case 1:  settings = SPISettings(4000000, MSBFIRST, SPI_MODE0); break;
-    case 2:  settings = SPISettings(2000000, MSBFIRST, SPI_MODE0); break;
-    case 3:  settings = SPISettings(1000000, MSBFIRST, SPI_MODE0); break;
-    case 4:  settings = SPISettings(500000, MSBFIRST, SPI_MODE0); break;
-    case 5:  settings = SPISettings(250000, MSBFIRST, SPI_MODE0); break;
-    default: settings = SPISettings(125000, MSBFIRST, SPI_MODE0);
-  }
-
-  return true;
-}
 #ifdef USE_SPI_LIB
 //------------------------------------------------------------------------------
 // set the SPI clock frequency
@@ -422,17 +388,13 @@ uint8_t Sd2Card::writeBlock(uint32_t blockNumber, const uint8_t* src) {
 
   // use address if not SDHC card
   blockNumber <<= 9;
-  W25Q16_Write(blockNumber; src; 512);
+  W25Q16_Write(blockNumber, src, 512);
   return true;
 
  fail:
   return false;
 }
-//------------------------------------------------------------------------------
-/** Write one data block in a multiple block write sequence */
-uint8_t Sd2Card::writeData(const uint8_t* src) {
-  return writeData(WRITE_MULTIPLE_TOKEN, src);
-}
+
 //------------------------------------------------------------------------------
 // send one block of data for write block or write multiple blocks
 uint8_t Sd2Card::writeData(uint8_t token, const uint8_t* src) {

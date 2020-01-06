@@ -17,7 +17,7 @@
  * along with the Arduino SdFat Library.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
-#include "SdFat.h"
+#include "Fat.h"
 //------------------------------------------------------------------------------
 // raw block cache
 // init cacheBlockNumber_to invalid SD block number
@@ -114,11 +114,17 @@ uint8_t SdVolume::cacheFlush(void) {
 }
 //------------------------------------------------------------------------------
 uint8_t SdVolume::cacheRawBlock(uint32_t blockNumber, uint8_t action) {
+  Serial.print("cacheBlockNumber_");Serial.println(cacheBlockNumber_);
+  Serial.print("blockNumber");Serial.println(blockNumber);
   if (cacheBlockNumber_ != blockNumber) {
     if (!cacheFlush()) return false;
     if (!sdCard_->readBlock(blockNumber, cacheBuffer_.data)) return false;
     cacheBlockNumber_ = blockNumber;
   }
+  Serial.print("cacheBuffer_.data=");
+  for(int i=0;i<512;i++)
+  {Serial.print(cacheBuffer_.data[i],HEX);Serial.print(" ");}
+  Serial.println();
   cacheDirty_ |= action;
   return true;
 }
@@ -233,11 +239,12 @@ uint8_t SdVolume::init(Sd2Card* dev, uint8_t part) {
     if (part > 4)return false;
     if (!cacheRawBlock(volumeStartBlock, CACHE_FOR_READ)) return false;
     part_t* p = &cacheBuffer_.mbr.part[part-1];
-    if ((p->boot & 0X7F) !=0  ||
+
+	if ((p->boot & 0X7F) !=0  ||
       p->totalSectors < 100 ||
       p->firstSector == 0) {
       // not a valid partition
-      return false;
+		return false;
     }
     volumeStartBlock = p->firstSector;
   }
@@ -259,6 +266,7 @@ uint8_t SdVolume::init(Sd2Card* dev, uint8_t part) {
     // error if not power of 2
     if (clusterSizeShift_++ > 7) return false;
   }
+  
   blocksPerFat_ = bpb->sectorsPerFat16 ?
                     bpb->sectorsPerFat16 : bpb->sectorsPerFat32;
 
@@ -266,7 +274,9 @@ uint8_t SdVolume::init(Sd2Card* dev, uint8_t part) {
 
   // count for FAT16 zero for FAT32
   rootDirEntryCount_ = bpb->rootDirEntryCount;
-
+  Serial.print("fatStartBlock_");Serial.println(fatStartBlock_);
+  Serial.print("bpb->fatCount");Serial.println(bpb->fatCount);
+  Serial.print("blocksPerFat_");Serial.println(blocksPerFat_);
   // directory start for FAT16 dataStart for FAT32
   rootDirStart_ = fatStartBlock_ + bpb->fatCount * blocksPerFat_;
 

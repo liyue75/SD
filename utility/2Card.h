@@ -24,7 +24,7 @@
  * SPI2Flash class
  */
 
-#include "SdInfo.h"
+#include "Info.h"
 
 /** Set SCK to max rate of F_CPU/2. See Sd2Card::setSckRate(). */
 uint8_t const SPI_FULL_SPEED = 0;

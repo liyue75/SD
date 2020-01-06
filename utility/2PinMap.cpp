@@ -19,8 +19,8 @@
  */
 #if defined(__arm__) // Arduino Due Board follows
 
-#ifndef Sd2PinMap_h
-#define Sd2PinMap_h
+#ifndef PinMap_h
+#define PinMap_h
 
 #include <Arduino.h>
 
